@@ -50,9 +50,7 @@ export class RukunWargaRepository {
       where: { RukunWargaId: { [Op.in]: data.map((e) => e.id) } },
     })
 
-    const userCount = await UserDetail.count({
-      where: { RukunWargaId: { [Op.in]: data.map((e) => e.id) } },
-    })
+    const userCount = 0
 
     const dataCount = await RukunWarga.count()
 

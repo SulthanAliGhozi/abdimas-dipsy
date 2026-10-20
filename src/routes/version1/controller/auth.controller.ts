@@ -5,6 +5,7 @@ import HttpResponse from '@/libs/http/HttpResponse'
 import {
   loginSchema,
   loginWithNikSchema,
+  loginWithNisnSchema,
   registerSchema,
 } from '@/features/auth/schema'
 
@@ -19,7 +20,7 @@ route.post(
 
     const values = registerSchema.validateSync(formData)
 
-    const data = await repository.register({ ...values, isKader: false })
+    const data = await repository.register({ ...values })
 
     const httpResponse = HttpResponse.created({
       message: req.t.auth.registerSuccess,
@@ -49,13 +50,50 @@ route.post(
 )
 
 route.post(
+  '/signin/student',
+  asyncHandler(async (req: Request, res: Response) => {
+    const formData = req.getBody()
+
+    const values = loginWithNisnSchema.validateSync(formData)
+
+    const data = await repository.loginWithNisn(values)
+
+    const httpResponse = HttpResponse.get({
+      message: req.t.auth.loginSuccess,
+      data,
+    })
+
+    res.status(200).json(httpResponse)
+  })
+)
+
+route.post(
+  '/signin/nisn',
+  asyncHandler(async (req: Request, res: Response) => {
+    const formData = req.getBody()
+
+    const values = loginWithNisnSchema.validateSync(formData)
+
+    const data = await repository.loginWithNisn(values)
+
+    const httpResponse = HttpResponse.get({
+      message: req.t.auth.loginSuccess,
+      data,
+    })
+
+    res.status(200).json(httpResponse)
+  })
+)
+
+// Backward compatibility alias for /signin/resident
+route.post(
   '/signin/resident',
   asyncHandler(async (req: Request, res: Response) => {
     const formData = req.getBody()
 
     const values = loginWithNikSchema.validateSync(formData)
 
-    const data = await repository.loginWithNik(values)
+    const data = await repository.loginWithNisn(values)
 
     const httpResponse = HttpResponse.get({
       message: req.t.auth.loginSuccess,

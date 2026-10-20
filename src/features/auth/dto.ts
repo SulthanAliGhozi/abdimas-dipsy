@@ -3,25 +3,37 @@ export interface LoginDto {
   password: string
 }
 
-export interface LoginWithNikDto {
-  nik: string
+export interface LoginWithNisnDto {
+  nisn?: string | null
+  nik?: string | null
   password: string
 }
 
+export type LoginWithNikDto = LoginWithNisnDto
+
 export interface RegisterDto {
   fullname: string
-  nik: string
+  nisn: string
+  birthDate: Date
+  gender: string
+  GradeId: string
+  ClassId: string
+  nis?: string | null
+  entryYear?: string | null
+  academicYear?: string | null
   email?: string | null
   phoneNumber?: string | null
   password: string
   confirmPassword: string
-  profession: string
-  birthDate: Date
-  RukunWargaId: string
-  RukunTetanggaId: string
-  MarriageStatusId: string
-  EducationId: string
-  SalaryRangeId: string
+
+  // Backward compatibility fields
+  nik?: string
+  profession?: string
+  RukunWargaId?: string
+  RukunTetanggaId?: string
+  MarriageStatusId?: string
+  EducationId?: string
+  SalaryRangeId?: string
   isKader?: boolean
 }
 

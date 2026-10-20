@@ -1,4 +1,5 @@
 import { db } from '@/database/databaseConnection'
+import { Op } from 'sequelize'
 import Family from '@/database/model/family'
 import User from '@/database/model/user'
 import UserDetail from '@/database/model/userDetail'
@@ -124,12 +125,12 @@ export class FamilyRepository {
 
   async addMemberByNik(familyId: string, nik: string): Promise<UserDetail> {
     const userDetail = await UserDetail.findOne({
-      where: { nik },
+      where: { [Op.or]: [{ nisn: nik }, { nis: nik }] },
     })
 
     if (!userDetail)
       throw new ErrorResponse.NotFound(
-        'Penduduk dengan NIK tersebut tidak ditemukan'
+        'Siswa/Penduduk dengan NISN/NIK tersebut tidak ditemukan'
       )
 
     await userDetail.update({ FamilyId: familyId })
@@ -141,10 +142,11 @@ export class FamilyRepository {
     formData: RegisterDto
   ): Promise<any> {
     let newUserId: string = ''
+    const identifier = (formData as any).nisn || formData.nik
 
     await db.sequelize!.transaction(async (transaction) => {
       const duplicateNik = await UserDetail.findOne({
-        where: { nik: formData.nik },
+        where: { [Op.or]: [{ nisn: identifier }, { nis: identifier }] },
         transaction,
       })
       if (duplicateNik)
@@ -153,7 +155,7 @@ export class FamilyRepository {
       if (!formData.email) {
         formData.email = authRepo.createEmailFromFullnameAndNik(
           formData.fullname,
-          formData.nik
+          identifier
         )
       }
 
@@ -188,7 +190,7 @@ export class FamilyRepository {
       await UserDetail.create(
         {
           ...formData,
-          nik: formData.nik,
+          nisn: identifier,
           UserId: user.id,
           FamilyId: familyId,
         },

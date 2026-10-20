@@ -3,19 +3,31 @@ import User from '@/database/model/user'
 import { ErrorResponse } from '@/libs/http/ErrorResponse'
 import JwtToken from '@/libs/jwtToken'
 import { env } from '@/config/env.config'
-import { AuthResponseDto, LoginDto, LoginWithNikDto, RegisterDto } from '../dto'
+import {
+  AuthResponseDto,
+  LoginDto,
+  LoginWithNisnDto,
+  RegisterDto,
+} from '../dto'
 import { RoleId } from '@/libs/constant/roleIds'
 import UserDetail from '@/database/model/userDetail'
 import Role from '@/database/model/role'
 import UserHasRoles from '@/database/model/userHasRoles'
+import { Op } from 'sequelize'
 
 const jwt = new JwtToken({ secret: env.JWT_SECRET, expires: env.JWT_EXPIRES })
 
 export class AuthRepository {
-  public createEmailFromFullnameAndNik(fullname: string, nik: string): string {
-    const nameForEmail = fullname.toLowerCase().split(' ').slice(0, 2).join('')
-    const lastDigitNik = nik.slice(-4)
-    return `${nameForEmail}.${lastDigitNik}@cibiru.wetan`
+  public createEmailFromNisn(nisn: string): string {
+    return `${nisn}@al-multazam.sch.id`
+  }
+
+  // Backward compatibility alias
+  public createEmailFromFullnameAndNik(
+    _fullname: string,
+    nik: string
+  ): string {
+    return this.createEmailFromNisn(nik)
   }
 
   async login(formData: LoginDto): Promise<AuthResponseDto> {
@@ -64,20 +76,24 @@ export class AuthRepository {
     return data
   }
 
-  async loginWithNik(formData: LoginWithNikDto): Promise<AuthResponseDto> {
+  async loginWithNisn(formData: LoginWithNisnDto): Promise<AuthResponseDto> {
+    const identifier = formData.nisn || formData.nik
+
     const getUser = await UserDetail.findOne({
-      where: { nik: formData.nik },
+      where: {
+        [Op.or]: [{ nisn: identifier }, { nis: identifier }],
+      },
       include: [{ model: User.scope('withPassword') }],
     })
 
-    if (!getUser) throw new ErrorResponse.NotFound('auth.loginNikFailed')
+    if (!getUser) throw new ErrorResponse.NotFound('auth.loginNisnFailed')
 
     const isPasswordMatch = await getUser.user.comparePassword(
       formData.password
     )
 
     if (!isPasswordMatch)
-      throw new ErrorResponse.BadRequest('auth.loginNikFailed')
+      throw new ErrorResponse.BadRequest('auth.loginNisnFailed')
 
     const data = await this.login({
       email: getUser.user.email,
@@ -87,21 +103,25 @@ export class AuthRepository {
     return data
   }
 
+  // Backward compatibility alias
+  async loginWithNik(formData: any): Promise<AuthResponseDto> {
+    return await this.loginWithNisn(formData)
+  }
+
   async register(formData: RegisterDto): Promise<AuthResponseDto> {
+    const nisn = formData.nisn || (formData as any).nik
+
     await db.sequelize!.transaction(async (transaction) => {
-      const duplicateNik = await UserDetail.findOne({
-        where: { nik: formData.nik },
+      const duplicateNisn = await UserDetail.findOne({
+        where: { nisn },
         transaction,
       })
 
-      if (duplicateNik)
-        throw new ErrorResponse.BaseResponse('auth.nikUsed', 'Conflict', 409)
+      if (duplicateNisn)
+        throw new ErrorResponse.BaseResponse('auth.nisnUsed', 'Conflict', 409)
 
       if (!formData.email) {
-        formData.email = this.createEmailFromFullnameAndNik(
-          formData.fullname,
-          formData.nik
-        )
+        formData.email = this.createEmailFromNisn(nisn)
       }
 
       const duplicateEmail = await User.findOne({
@@ -126,7 +146,14 @@ export class AuthRepository {
           )
       }
 
-      const user = await User.create({ ...formData }, { transaction })
+      const user = await User.create(
+        {
+          fullname: formData.fullname,
+          email: formData.email,
+          password: formData.password,
+        },
+        { transaction }
+      )
 
       await UserHasRoles.create(
         {
@@ -138,16 +165,23 @@ export class AuthRepository {
 
       await UserDetail.create(
         {
-          ...formData,
-          nik: formData.nik,
           UserId: user.id,
+          nisn,
+          nis: formData.nis,
+          entryYear: formData.entryYear || formData.academicYear,
+          academicYear: formData.academicYear || formData.entryYear,
+          GradeId: formData.GradeId,
+          ClassId: formData.ClassId,
+          gender: formData.gender,
+          birthDate: formData.birthDate,
+          phoneNumber: formData.phoneNumber,
         },
         { transaction }
       )
     })
 
-    const data = await this.loginWithNik({
-      nik: formData.nik,
+    const data = await this.loginWithNisn({
+      nisn,
       password: formData.password,
     })
 

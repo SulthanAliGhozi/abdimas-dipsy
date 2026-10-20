@@ -47,13 +47,27 @@ export async function up(
     ]
 
     for (const fk of foreignKeys) {
-      // 1. Hapus Constraint Lama (Nama sesuai screenshot: ibfk_...)
-      // Pastikan nama tabel 'userDetail' sesuai dengan definisi model Anda
-      await queryInterface.removeConstraint(
-        'userDetail',
-        fk.oldConstraintName,
+      // 1. Hapus Constraint Lama (cari secara dinamis agar kompatibel dengan MySQL & MariaDB)
+      const [results]: any = await queryInterface.sequelize.query(
+        `SELECT CONSTRAINT_NAME 
+         FROM information_schema.KEY_COLUMN_USAGE 
+         WHERE TABLE_SCHEMA = DATABASE() 
+           AND TABLE_NAME = 'userDetail' 
+           AND COLUMN_NAME = '${fk.field}' 
+           AND REFERENCED_TABLE_NAME IS NOT NULL`,
         { transaction }
       )
+
+      const constraintNameToRemove =
+        results?.[0]?.CONSTRAINT_NAME || fk.oldConstraintName
+
+      if (constraintNameToRemove) {
+        await queryInterface.removeConstraint(
+          'userDetail',
+          constraintNameToRemove,
+          { transaction }
+        )
+      }
 
       // 2. Buat Constraint Baru dengan aturan CASCADE
       await queryInterface.addConstraint('userDetail', {
@@ -120,11 +134,26 @@ export async function down(
 
     for (const fk of foreignKeys) {
       // 1. Hapus Constraint CASCADE (nama baru)
-      await queryInterface.removeConstraint(
-        'userDetail',
-        fk.newConstraintName,
+      const [results]: any = await queryInterface.sequelize.query(
+        `SELECT CONSTRAINT_NAME 
+         FROM information_schema.KEY_COLUMN_USAGE 
+         WHERE TABLE_SCHEMA = DATABASE() 
+           AND TABLE_NAME = 'userDetail' 
+           AND COLUMN_NAME = '${fk.field}' 
+           AND REFERENCED_TABLE_NAME IS NOT NULL`,
         { transaction }
       )
+
+      const constraintNameToRemove =
+        results?.[0]?.CONSTRAINT_NAME || fk.newConstraintName
+
+      if (constraintNameToRemove) {
+        await queryInterface.removeConstraint(
+          'userDetail',
+          constraintNameToRemove,
+          { transaction }
+        )
+      }
 
       // 2. Kembalikan ke Constraint RESTRICT (nama lama ibfk)
       await queryInterface.addConstraint('userDetail', {

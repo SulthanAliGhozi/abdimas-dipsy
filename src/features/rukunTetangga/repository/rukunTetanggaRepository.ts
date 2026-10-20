@@ -70,19 +70,6 @@ export class RukunTetanggaRepository {
   async getById(id: string): Promise<RukunTetanggaDetailDto> {
     const data = await RukunTetangga.findOne({
       where: { id },
-      include: [{ model: UserDetail, include: [{ model: User }] }],
-      attributes: {
-        include: [
-          [
-            Sequelize.literal(`(
-                      SELECT COUNT(*)
-                      FROM user_details AS ud
-                      WHERE ud.RukunTetanggaId = RukunTetangga.id
-                    )`),
-            'userCount',
-          ],
-        ],
-      },
     })
 
     if (!data) throw new ErrorResponse.NotFound('errors.notFound')
