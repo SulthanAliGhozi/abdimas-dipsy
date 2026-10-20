@@ -16,4 +16,5 @@ const config: Options = {
   timezone: process.env.SEQUELIZE_TIMEZONE,
 }
 
+
 export = config
